@@ -1,0 +1,25 @@
+{
+  "name": "sidekick-collector",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local agent that reads AI coding CLI usage and pushes snapshots to the Sidekick Dashboard.",
+  "bin": {
+    "sidekick-collector": "src/index.ts"
+  },
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "once": "tsx src/index.ts --once",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "tsx": "^4.19.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.5.4"
+  },
+  "engines": {
+    "node": ">=18.18"
+  }
+}

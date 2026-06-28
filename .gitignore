@@ -1,0 +1,25 @@
+# dependencies
+node_modules/
+collector/node_modules/
+
+# next
+.next/
+out/
+next-env.d.ts
+
+# build
+dist/
+collector/dist/
+
+# env
+.env
+.env.local
+.env*.local
+collector/.env
+collector/config.local.json
+
+# misc
+.DS_Store
+*.log
+.vercel
+*.tsbuildinfo
