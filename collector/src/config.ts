@@ -19,6 +19,9 @@ export const config = {
   codexDir: process.env.CODEX_DIR || path.join(os.homedir(), '.codex'),
 
   cursorApiKey: process.env.CURSOR_API_KEY || '',
+  cursorApiBase: (process.env.CURSOR_API_BASE || 'https://api.cursor.com').replace(/\/$/, ''),
+  cursorEmail: process.env.CURSOR_EMAIL || '',
+  cursorLimitUsd: num(process.env.CURSOR_LIMIT_USD),
 
   lovableCredits: num(process.env.LOVABLE_CREDITS),
   replitBalanceUsd: num(process.env.REPLIT_BALANCE_USD)

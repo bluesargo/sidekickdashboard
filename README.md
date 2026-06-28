@@ -46,7 +46,8 @@ device can poll.
 | `lib/` | Supabase client, aggregation, auth, ingest validation |
 | `supabase/migrations/` | Database schema (`usage_snapshots` table + `latest_usage` view) |
 | `collector/` | Standalone local agent (its own `package.json`) |
-| `docs/` | Setup guides for SenseCraft and the collector |
+| `scripts/` | `push-metrics.mjs` — push arbitrary metrics to `/api/ingest` |
+| `docs/` | Setup guides: SenseCraft, collector, and connectors |
 
 ## Quick start
 
@@ -122,8 +123,15 @@ to map.
   `rate_limits` snapshot Codex writes into its session rollout files
   (`~/.codex/sessions/**/rollout-*.jsonl`). `primary` = rolling 5h, `secondary` =
   weekly. No auth needed — same data `/status` reports.
-- **Cursor** needs `CURSOR_API_KEY`; otherwise enter a balance in `/admin`.
-- **Lovable / Replit** are manual (`/admin` or collector env) — no public usage API.
+- **Cursor spend/remaining** — the **real** numbers from the Cursor **Admin API**
+  (`POST /teams/spend`, Basic auth with `CURSOR_API_KEY`). Reports current-cycle
+  spend, and remaining + used % when a limit is known. Individual (non-team) plans
+  have no public API → enter a balance in `/admin`.
+- **Lovable credits** — read from the **Lovable MCP connector** (`get_workspace`)
+  via a connector sync, since Lovable has no public credits API. See
+  [`docs/connectors.md`](docs/connectors.md).
+- **Replit** — the connector exposes no usage data, so it's manual (`/admin` or
+  `REPLIT_BALANCE_USD`).
 
 Every provider also accepts a manual override, so the display is never blank.
 

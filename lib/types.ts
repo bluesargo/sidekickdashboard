@@ -13,7 +13,7 @@ export interface Metric {
 }
 
 export interface IngestPayload {
-  source?: 'collector' | 'manual' | 'api';
+  source?: 'collector' | 'manual' | 'api' | 'connector';
   capturedAt?: string; // ISO; defaults to server now()
   metrics: Metric[];
 }

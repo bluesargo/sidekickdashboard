@@ -54,8 +54,14 @@ function toCards(d: DashboardJson): Card[] {
     },
     {
       name: 'Cursor · Balance',
-      big: usd((d.cursor as Record<string, unknown>).balance_usd),
-      meta: 'remaining'
+      big:
+        typeof (d.cursor as Record<string, unknown>).balance_usd === 'number'
+          ? usd((d.cursor as Record<string, unknown>).balance_usd)
+          : usd((d.cursor as Record<string, unknown>).used_usd),
+      meta:
+        typeof (d.cursor as Record<string, unknown>).balance_usd === 'number'
+          ? 'remaining'
+          : 'spend this cycle'
     },
     {
       name: 'Replit · Balance',
