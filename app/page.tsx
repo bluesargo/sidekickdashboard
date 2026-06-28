@@ -8,6 +8,7 @@ interface Card {
   big: string;
   meta?: string;
   pct?: number | null;
+  srcKey: string; // flat key used to look up resets/updated times
 }
 
 function pctBig(v: unknown): string {
@@ -21,54 +22,65 @@ function usd(v: unknown): string {
 }
 
 function toCards(d: DashboardJson): Card[] {
-  const c = d.claude as Record<string, number | undefined>;
+  const c = d.codex as Record<string, unknown>;
+  const cur = d.cursor as Record<string, unknown>;
+  const hasCursorBalance = typeof cur.balance_usd === 'number';
   return [
     {
       name: 'Claude · Session',
-      big: pctBig(c.session_pct),
-      meta: c.session_resets_at ? `resets ${String(c.session_resets_at)}` : 'current 5h window',
-      pct: typeof c.session_pct === 'number' ? c.session_pct : null
+      big: pctBig((d.claude as Record<string, unknown>).session_pct),
+      meta: 'rolling 5h',
+      pct: typeof (d.claude as Record<string, unknown>).session_pct === 'number'
+        ? ((d.claude as Record<string, unknown>).session_pct as number)
+        : null,
+      srcKey: 'claude_session_pct'
     },
     {
       name: 'Claude · Weekly',
-      big: pctBig(c.weekly_pct),
+      big: pctBig((d.claude as Record<string, unknown>).weekly_pct),
       meta: 'weekly limit',
-      pct: typeof c.weekly_pct === 'number' ? c.weekly_pct : null
+      pct: typeof (d.claude as Record<string, unknown>).weekly_pct === 'number'
+        ? ((d.claude as Record<string, unknown>).weekly_pct as number)
+        : null,
+      srcKey: 'claude_weekly_pct'
     },
     {
       name: 'Lovable · Credits',
       big: num((d.lovable as Record<string, unknown>).credits),
-      meta: 'credit balance'
+      meta: 'credits left',
+      srcKey: 'lovable_credits'
     },
     {
       name: 'Codex · Session',
-      big: pctBig((d.codex as Record<string, unknown>).session_pct),
-      meta:
-        typeof (d.codex as Record<string, unknown>).weekly_pct === 'number'
-          ? `weekly ${pctBig((d.codex as Record<string, unknown>).weekly_pct)}`
-          : 'rolling 5h',
-      pct:
-        typeof (d.codex as Record<string, unknown>).session_pct === 'number'
-          ? ((d.codex as Record<string, unknown>).session_pct as number)
-          : null
+      big: pctBig(c.session_pct),
+      meta: typeof c.weekly_pct === 'number' ? `weekly ${pctBig(c.weekly_pct)}` : 'rolling 5h',
+      pct: typeof c.session_pct === 'number' ? (c.session_pct as number) : null,
+      srcKey: 'codex_session_pct'
     },
     {
       name: 'Cursor · Balance',
-      big:
-        typeof (d.cursor as Record<string, unknown>).balance_usd === 'number'
-          ? usd((d.cursor as Record<string, unknown>).balance_usd)
-          : usd((d.cursor as Record<string, unknown>).used_usd),
-      meta:
-        typeof (d.cursor as Record<string, unknown>).balance_usd === 'number'
-          ? 'remaining'
-          : 'spend this cycle'
+      big: hasCursorBalance ? usd(cur.balance_usd) : usd(cur.used_usd),
+      meta: hasCursorBalance ? 'remaining' : 'spend this cycle',
+      srcKey: hasCursorBalance ? 'cursor_balance_usd' : 'cursor_used_usd'
     },
     {
       name: 'Replit · Balance',
       big: usd((d.replit as Record<string, unknown>).balance_usd),
-      meta: 'remaining'
+      meta: 'remaining',
+      srcKey: 'replit_balance_usd'
     }
   ];
+}
+
+function subline(d: DashboardJson, srcKey: string): string {
+  const resets = d.flat[`${srcKey}_resets_in`];
+  const updated = d.flat[`${srcKey}_updated_ago`];
+  return [
+    typeof resets === 'string' && resets ? `resets ${resets}` : '',
+    typeof updated === 'string' && updated ? `updated ${updated}` : ''
+  ]
+    .filter(Boolean)
+    .join(' · ');
 }
 
 export default async function Home() {
@@ -85,7 +97,9 @@ export default async function Home() {
       <h1>Sidekick Dashboard</h1>
       <p className="sub">
         Live preview of what your reTerminal renders.{' '}
-        {dashboard?.updated_at ? `Updated ${dashboard.updated_at}.` : 'No data yet.'}
+        {dashboard?.updated_at
+          ? `Updated ${dashboard.flat.updated_ago ?? dashboard.updated_at}.`
+          : 'No data yet.'}
       </p>
 
       {error ? (
@@ -100,18 +114,22 @@ export default async function Home() {
       ) : (
         <div className="grid">
           {dashboard &&
-            toCards(dashboard).map((card) => (
-              <div className="card" key={card.name}>
-                <p className="name">{card.name}</p>
-                <div className="big">{card.big}</div>
-                {card.meta && <div className="meta">{card.meta}</div>}
-                {typeof card.pct === 'number' && (
-                  <div className="bar">
-                    <span style={{ width: `${Math.min(100, Math.max(0, card.pct))}%` }} />
-                  </div>
-                )}
-              </div>
-            ))}
+            toCards(dashboard).map((card) => {
+              const sub = subline(dashboard!, card.srcKey);
+              return (
+                <div className="card" key={card.name}>
+                  <p className="name">{card.name}</p>
+                  <div className="big">{card.big}</div>
+                  {card.meta && <div className="meta">{card.meta}</div>}
+                  {typeof card.pct === 'number' && (
+                    <div className="bar">
+                      <span style={{ width: `${Math.min(100, Math.max(0, card.pct))}%` }} />
+                    </div>
+                  )}
+                  {sub && <div className="meta">{sub}</div>}
+                </div>
+              );
+            })}
         </div>
       )}
 

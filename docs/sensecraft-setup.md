@@ -40,8 +40,24 @@ paths:
 | Cursor balance | `flat.cursor_balance_usd` | number ($) |
 | Replit balance | `flat.replit_balance_usd` | number ($) |
 
-For richer labels/reset times, the nested objects are also present, e.g.
-`claude.session_pct_label`, `claude.session_pct_detail.resets_at`,
+### Reset + freshness times (per limit)
+Every value also exposes when it resets and how fresh it is, as ready-to-show
+strings (computed on each device fetch). For any `flat.<key>` add:
+
+| Widget | JSON path | Example |
+|--------|-----------|---------|
+| Resets in | `flat.<key>_resets_in` | `in 3h 12m` |
+| Reset timestamp | `flat.<key>_resets_at` | `2026-06-28T18:13:00Z` |
+| Updated ago | `flat.<key>_updated_ago` | `5m ago` |
+| Updated timestamp | `flat.<key>_updated_at` | ISO 8601 |
+
+e.g. `flat.claude_session_pct_resets_in`, `flat.codex_weekly_pct_resets_in`,
+`flat.lovable_credits_resets_in`. A global `flat.updated_ago` / `updated_at`
+covers the whole dashboard. `_resets_*` appears only for metrics that carry a
+reset window (Claude/Codex limits, Lovable credit grant).
+
+For richer labels, the nested objects are also present, e.g.
+`claude.session_pct_label`, `claude.session_pct_resets_in`,
 `claude.session_cost_usd`.
 
 ### Single-value alternative

@@ -31,22 +31,29 @@ source to `connector`.
 
 ## Lovable (automated via connector)
 
-A sync step reads the credit balance from the Lovable connector and pushes it:
+The [`lovable-sync` skill](../.claude/skills/lovable-sync/SKILL.md) reads
+`get_workspace` and pushes the credits. Field mapping (confirmed against a real
+workspace):
 
-1. Call the Lovable connector `get_workspace` (use `list_workspaces` / `get_me`
-   first if you have several) and read the workspace **credit balance**.
-2. Push it:
-   ```json
-   [{ "provider": "lovable", "metric": "credits", "value": <balance>, "unit": "credits", "label": "Lovable credits" }]
-   ```
+| Pushed metric | From `get_workspace` field |
+|---|---|
+| `credits` (remaining) | `max(0, billing_period_credits_limit - billing_period_credits_used)` |
+| `usage_pct` | `billing_period_credits_used / billing_period_credits_limit * 100` |
+| `credits_used` | `billing_period_credits_used` |
+| `credits_limit` | `billing_period_credits_limit` |
+| `detail.resets_at` | `next_monthly_credit_grant_date` (drives the "resets in …" line) |
 
-Run it on whatever cadence you like:
+Run it:
 
-- **On demand** — ask Claude in this environment: *"sync my Lovable credits to the
-  dashboard."*
-- **Scheduled** — a recurring agent task (cron) in this environment that performs
-  the two steps above. Ask Claude to *"set up a recurring Lovable credit sync every
-  6 hours"* and it can schedule it.
+- **On demand** — *"sync my Lovable credits to the dashboard."*
+- **Every 6 hours** — schedule the skill with CronCreate (`"13 */6 * * *"`).
+
+> Durability note: CronCreate jobs run inside a Claude session. A Claude Code
+> **web** session runs in an ephemeral container that is reclaimed on inactivity,
+> so for a real always-on 6-hour sync run the skill from a persistent Claude
+> surface (e.g. Claude Code on your own machine, where the Lovable connector is
+> authorized). The sync also needs the dashboard deployed so `DASHBOARD_URL` /
+> `INGEST_TOKEN` exist to receive the push.
 
 ## Replit
 
