@@ -1,0 +1,5 @@
+# The collector is a standalone local agent, not part of the web app.
+collector
+# Local agent skills / docs are not needed by the deploy.
+.claude
+*.log
