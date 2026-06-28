@@ -41,9 +41,16 @@ function toCards(d: DashboardJson): Card[] {
       meta: 'credit balance'
     },
     {
-      name: 'Codex · Balance',
-      big: usd((d.codex as Record<string, unknown>).balance_usd),
-      meta: 'remaining'
+      name: 'Codex · Session',
+      big: pctBig((d.codex as Record<string, unknown>).session_pct),
+      meta:
+        typeof (d.codex as Record<string, unknown>).weekly_pct === 'number'
+          ? `weekly ${pctBig((d.codex as Record<string, unknown>).weekly_pct)}`
+          : 'rolling 5h',
+      pct:
+        typeof (d.codex as Record<string, unknown>).session_pct === 'number'
+          ? ((d.codex as Record<string, unknown>).session_pct as number)
+          : null
     },
     {
       name: 'Cursor · Balance',

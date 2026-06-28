@@ -35,7 +35,8 @@ paths:
 | Claude session | `flat.claude_session_pct` | number (%) |
 | Claude weekly | `flat.claude_weekly_pct` | number (%) |
 | Lovable credits | `flat.lovable_credits` | number |
-| Codex tokens (7d) | `flat.codex_weekly_tokens` | number |
+| Codex session | `flat.codex_session_pct` | number (%) |
+| Codex weekly | `flat.codex_weekly_pct` | number (%) |
 | Cursor balance | `flat.cursor_balance_usd` | number ($) |
 | Replit balance | `flat.replit_balance_usd` | number ($) |
 
@@ -61,7 +62,7 @@ A clean 2×3 grid of stat tiles works well on the 7.5″ panel:
 │ SESSION  42% │ WEEKLY   67% │ CREDITS  120 │
 ├──────────────┼──────────────┼──────────────┤
 │ CODEX        │ CURSOR       │ REPLIT       │
-│ 184k tok     │ $7.50        │ $8.50        │
+│ SESSION  35% │ $7.50        │ $8.50        │
 └──────────────┴──────────────┴──────────────┘
 ```
 

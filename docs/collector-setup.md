@@ -46,10 +46,14 @@ Example crontab (every 5 minutes):
 
 ## What each provider reads
 
-- **Claude** — walks `~/.claude/projects/**/*.jsonl`, sums token cost over a
-  rolling 5h (session) and 7d (weekly) window. With caps set, reports a `%`;
-  always reports USD spend.
-- **Codex** — best-effort walk of `~/.codex` for token-usage-shaped JSON over 7d.
+- **Claude** — reads the OAuth token from `~/.claude/.credentials.json` and makes
+  a minimal `POST /v1/messages`; uses the live `anthropic-ratelimit-unified-*`
+  response headers for the real session/weekly %. Falls back to a JSONL rolling-cost
+  estimate (vs. `CLAUDE_*_CAP_USD`) when no OAuth token is available. You can also
+  set `CLAUDE_OAUTH_TOKEN` directly.
+- **Codex** — reads the `rate_limits` snapshot from the newest
+  `~/.codex/sessions/**/rollout-*.jsonl` (`primary` = 5h, `secondary` = weekly)
+  for the real session/weekly %. No auth required.
 - **Cursor** — if `CURSOR_API_KEY` is set, fetches usage from the Cursor API.
   Adjust the endpoint/field mapping in `src/providers/cursor.ts` to your plan.
 - **Lovable / Replit** — pushed from env if set, else entered via `/admin`.

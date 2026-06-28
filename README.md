@@ -97,7 +97,8 @@ Example `GET /api/dashboard` response (trimmed):
     "claude_session_pct": 42,
     "claude_weekly_pct": 67,
     "lovable_credits": 120,
-    "codex_weekly_tokens": 184000,
+    "codex_session_pct": 35,
+    "codex_weekly_pct": 58,
     "cursor_balance_usd": 7.5,
     "replit_balance_usd": 8.5
   }
@@ -107,18 +108,24 @@ Example `GET /api/dashboard` response (trimmed):
 Bind SenseCraft widgets to the `flat.*` keys — they're single-level and easiest
 to map.
 
-## Notes on data accuracy
+## Where the numbers come from
 
-- **Claude session/weekly %** is computed from a rolling cost window over your
-  local Claude Code JSONL (5h / 7d) divided by configurable caps
-  (`CLAUDE_SESSION_CAP_USD`, `CLAUDE_WEEKLY_CAP_USD`). It approximates the gauge;
-  if a cap is unset the `%` is `null` and spend in USD is still reported.
-- **Codex** weekly token count is best-effort from local logs (schema varies).
+- **Claude session/weekly %** — the **real** utilization. The collector reads the
+  OAuth token from `~/.claude/.credentials.json` and makes a minimal
+  `POST /v1/messages`; Anthropic returns the live figures in response headers
+  (`anthropic-ratelimit-unified-5h/7d-utilization` + `-reset`) — the same numbers
+  `/status` shows. If no OAuth token is present (e.g. API-key auth), it falls back
+  to a rolling-cost estimate over local JSONL vs. configurable caps
+  (`CLAUDE_SESSION_CAP_USD`, `CLAUDE_WEEKLY_CAP_USD`).
+  _(Approach adapted from [Claude-Usage-Tracker](https://github.com/hamed-elfayome/Claude-Usage-Tracker).)_
+- **Codex session/weekly %** — the **real** utilization, read from the
+  `rate_limits` snapshot Codex writes into its session rollout files
+  (`~/.codex/sessions/**/rollout-*.jsonl`). `primary` = rolling 5h, `secondary` =
+  weekly. No auth needed — same data `/status` reports.
 - **Cursor** needs `CURSOR_API_KEY`; otherwise enter a balance in `/admin`.
-- **Lovable / Replit** are manual (`/admin` or collector env).
+- **Lovable / Replit** are manual (`/admin` or collector env) — no public usage API.
 
-These are honest limitations of the upstream tools, not of the dashboard — every
-provider also accepts a manual override so the display is never blank.
+Every provider also accepts a manual override, so the display is never blank.
 
 ## Sources
 - [reTerminal E1001 product page](https://www.seeedstudio.com/reTerminal-E1001-p-6534.html)
