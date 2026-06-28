@@ -31,29 +31,34 @@ source to `connector`.
 
 ## Lovable (automated via connector)
 
-The [`lovable-sync` skill](../.claude/skills/lovable-sync/SKILL.md) reads
-`get_workspace` and pushes the credits. Field mapping (confirmed against a real
-workspace):
+The [`lovable-sync` skill](../.claude/skills/lovable-sync/SKILL.md) does this.
 
-| Pushed metric | From `get_workspace` field |
-|---|---|
-| `credits` (remaining) | `max(0, billing_period_credits_limit - billing_period_credits_used)` |
-| `usage_pct` | `billing_period_credits_used / billing_period_credits_limit * 100` |
-| `credits_used` | `billing_period_credits_used` |
-| `credits_limit` | `billing_period_credits_limit` |
-| `detail.resets_at` | `next_monthly_credit_grant_date` (drives the "resets in …" line) |
+**Important data-source caveat:** the connector's `get_workspace` only returns the
+monthly **grant size** (`billing_period_credits_limit`), cumulative period usage,
+and `next_monthly_credit_grant_date`. It does **not** expose the spendable ledger
+the Lovable UI shows (monthly / top-up / rollover / daily build credits / total),
+and its `used`/`limit` numbers don't reconcile to the spendable total. So:
 
-Run it:
+- The routine sources the **monthly grant size + reset date** automatically.
+- The exact spendable buckets come from either occasional `/admin` entry (they only
+  change at known reset dates) or a logged-in browser read. See the skill.
 
-- **On demand** — *"sync my Lovable credits to the dashboard."*
-- **Every 6 hours** — schedule the skill with CronCreate (`"13 */6 * * *"`).
+The dashboard models the buckets as separate metrics (`credits`, `credits_monthly`,
+`credits_topup`, `credits_rollover`, `credits_daily`, `credits_grant`), each with
+its own expiry, so the device can show e.g. "Monthly 382 · resets in 8mo".
 
-> Durability note: CronCreate jobs run inside a Claude session. A Claude Code
-> **web** session runs in an ephemeral container that is reclaimed on inactivity,
-> so for a real always-on 6-hour sync run the skill from a persistent Claude
-> surface (e.g. Claude Code on your own machine, where the Lovable connector is
-> authorized). The sync also needs the dashboard deployed so `DASHBOARD_URL` /
-> `INGEST_TOKEN` exist to receive the push.
+### The durable runner: a Claude Code routine
+A routine in **Claude Code on your always-on machine** is the right home — the
+Lovable connector stays authorized there and the schedule survives (unlike a
+Claude **web** session, whose container is ephemeral). Set it up once:
+
+```cron
+# every 6h at :13, run the skill headless
+13 */6 * * * cd /path/to/sidekickdashboard && claude -p "/lovable-sync" >> ~/sidekick-lovable.log 2>&1
+```
+
+(or a long-lived Claude Code session with CronCreate `"13 */6 * * *"`, `durable: true`).
+It still needs the dashboard deployed so `DASHBOARD_URL` / `INGEST_TOKEN` exist.
 
 ## Replit
 

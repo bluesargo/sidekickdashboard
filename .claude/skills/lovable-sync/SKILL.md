@@ -1,45 +1,61 @@
 ---
 name: lovable-sync
-description: Read Lovable workspace credit balance via the Lovable MCP connector and push it to the Sidekick Dashboard ingest endpoint. Use when asked to sync/refresh Lovable credits, or on a schedule (e.g. every 6 hours).
+description: Read Lovable workspace credits and push them to the Sidekick Dashboard ingest endpoint. Use when asked to sync/refresh Lovable credits, or on a schedule (e.g. every 6 hours).
 ---
 
 # Lovable credit sync
 
-Lovable has no public credits REST API — the balance is only reachable through the
-**Lovable MCP connector**, which lives in the Claude environment. This skill reads
-it and pushes to the dashboard's `POST /api/ingest`.
+## What the connector can and can't give you
+`mcp__Lovable__get_workspace` returns only:
+- `billing_period_credits_limit` — the monthly grant size (e.g. 400)
+- `billing_period_credits_used` — cumulative usage this billing period (does NOT
+  reconcile to spendable balance)
+- `next_monthly_credit_grant_date` — when monthly credits reset to the grant size
+  (leftover monthly → rollover at that moment)
+- `topup_credits_purchased_at` — top-up purchase date (top-ups expire ~1y later)
 
-## Prerequisites
-- The Lovable connector is available (`mcp__Lovable__*` tools).
-- Env vars set: `DASHBOARD_URL`, `INGEST_TOKEN` (the deployed app + its ingest token).
-- `LOVABLE_WORKSPACE_ID` set (or known). For Blue Sargo it is `EibbhbC0hdDjMvBZs6go`.
+It does NOT expose the spendable **ledger** the Lovable UI shows (monthly /
+top-up / rollover / daily build credits / total). So the exact balance can't come
+from the connector alone — see "Getting exact balances" below.
+
+## Credit model (what the dashboard tracks)
+Push these metrics (omit any you don't have a value for):
+
+| metric | meaning | reset/expiry (`detail.resets_at`) |
+|---|---|---|
+| `credits` | total spendable (headline) | next monthly grant |
+| `credits_monthly` | monthly bucket remaining | monthly expiry date |
+| `credits_topup` | top-up bucket remaining | top-up expiry date |
+| `credits_rollover` | rollover bucket | — |
+| `credits_daily` | daily build credits (used first) | next 00:00 UTC |
+| `credits_grant` | monthly grant size (from connector) | next monthly grant |
 
 ## Steps
-1. Call `mcp__Lovable__get_workspace` with the workspace id (use
-   `mcp__Lovable__list_workspaces` first if the id is unknown).
-2. Map the response fields:
-   - `used`      = `billing_period_credits_used`
-   - `limit`     = `billing_period_credits_limit`
-   - `remaining` = `max(0, round(limit - used))`
-   - `usage_pct` = `round(used / limit * 100)`
-   - `resets_at` = `next_monthly_credit_grant_date`  ← the credit reset/expiration
-   - `plan`      = `plan`
-3. Push via the helper (or an equivalent `fetch` to `${DASHBOARD_URL}/api/ingest`
-   with `Authorization: Bearer ${INGEST_TOKEN}`):
-
+1. `mcp__Lovable__get_workspace` (id `EibbhbC0hdDjMvBZs6go` for Blue Sargo) →
+   read `billing_period_credits_limit` (grant) and `next_monthly_credit_grant_date`.
+2. Get the exact spendable buckets (see below).
+3. Push (env `DASHBOARD_URL`, `INGEST_TOKEN`):
    ```bash
    node scripts/push-metrics.mjs '[
-     {"provider":"lovable","metric":"credits","value":<remaining>,"unit":"credits","label":"Lovable credits","detail":{"resets_at":"<resets_at>","used":<used>,"limit":<limit>,"plan":"<plan>"}},
-     {"provider":"lovable","metric":"usage_pct","value":<usage_pct>,"unit":"pct","label":"Lovable used","detail":{"resets_at":"<resets_at>"}},
-     {"provider":"lovable","metric":"credits_used","value":<used>,"unit":"credits","label":"Used"},
-     {"provider":"lovable","metric":"credits_limit","value":<limit>,"unit":"credits","label":"Limit"}
+     {"provider":"lovable","metric":"credits","value":413,"unit":"credits","label":"Lovable credits","detail":{"resets_at":"2026-07-14T08:00:00Z"}},
+     {"provider":"lovable","metric":"credits_monthly","value":382,"unit":"credits","label":"Monthly","detail":{"resets_at":"2027-03-14T00:00:00Z"}},
+     {"provider":"lovable","metric":"credits_topup","value":31.4,"unit":"credits","label":"Top-up","detail":{"resets_at":"2027-06-10T00:00:00Z"}},
+     {"provider":"lovable","metric":"credits_rollover","value":0,"unit":"credits","label":"Rollover"},
+     {"provider":"lovable","metric":"credits_daily","value":5,"unit":"credits","label":"Daily","detail":{"resets_at":"<next-midnight-UTC>"}},
+     {"provider":"lovable","metric":"credits_grant","value":400,"unit":"credits","label":"Monthly grant","detail":{"resets_at":"2026-07-14T08:00:00Z"}}
    ]'
    ```
-4. Report the pushed `remaining` and `resets_at`.
+4. Report the pushed total + next reset.
 
-## Scheduling every 6 hours
-Run this on a persistent Claude surface (e.g. Claude Code on your own machine,
-where the connector is authorized and a durable cron can run). With CronCreate:
-`cron: "13 */6 * * *"`, prompt: "Run the lovable-sync skill." Note recurring
-CronCreate jobs auto-expire after 7 days and do not survive an ephemeral
-(web) container being reclaimed.
+## Getting exact balances (pick one; configured per setup)
+- **Manual/slow** — the monthly/top-up/rollover buckets only change at known reset
+  dates, so set them once via `/admin`; the routine still refreshes `credits_grant`
+  and the reset countdowns automatically.
+- **Browser read** — drive a logged-in Lovable session (Playwright) to read the
+  Credit balance dialog and push exact buckets. Exact but more brittle.
+
+## Scheduling (Claude Code routine)
+Run this from a persistent Claude Code install where the Lovable connector is
+configured (e.g. your always-on dev box) — that's the durable runner. Either:
+- OS cron: `13 */6 * * * cd /path/to/sidekickdashboard && claude -p "/lovable-sync" >> ~/sidekick-lovable.log 2>&1`
+- or a long-lived Claude Code session with CronCreate `"13 */6 * * *"` (`durable: true`).
